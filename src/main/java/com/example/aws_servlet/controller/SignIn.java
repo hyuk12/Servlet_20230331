@@ -13,39 +13,53 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.io.PrintWriter;
 
-@WebServlet(urlPatterns = {"/auth/signin"})
+@WebServlet("/auth/signin")
 public class SignIn extends HttpServlet {
-
     private static final long serialVersionUID = 1L;
 
     private UserService userService;
     private Gson gson;
 
-    public SignIn () {
+    public SignIn() {
         userService = UserServiceImpl.getInstance();
         gson = new Gson();
     }
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String username = req.getParameter("username");
-        String password = req.getParameter("password");
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
         User user = userService.getUser(username);
-        System.out.println("username: " + username);
-        System.out.println("password: " + password);
 
-        resp.setContentType("application/json; charset=utf-8");
-        if (user != null && user.getPassword().equals(password)) {
-            ResponseDto<Boolean> responseDto = new ResponseDto<Boolean>(200, "사용자 인증 성공", true);
-            resp.getWriter().write(gson.toJson(responseDto));
-        } else {
-            HttpSession session = req.getSession();
-            assert user != null;
-            session.setAttribute("AuthenticationPrincipal", user.getUserId());
+        response.setContentType("application/json;charset=utf-8");
+        PrintWriter out = response.getWriter();
 
-            ResponseDto<Boolean> responseDto = new ResponseDto<Boolean>(400, "사용자 인증 실패", false);
-            resp.getWriter().write(gson.toJson(responseDto));
+        if(user == null) {
+            // 로그인 실패 1(아이디 찾을 수 없음)
+            ResponseDto<Boolean> responseDto =
+                    new ResponseDto<Boolean>(400, "사용자 인증 실패", false);
+            out.println(gson.toJson(responseDto));
+            return;
         }
+
+        if(!user.getPassword().equals(password)) {
+            // 로그인 실패 2(비밀번호 틀림)
+            ResponseDto<Boolean> responseDto =
+                    new ResponseDto<Boolean>(400, "사용자 인증 실패", false);
+            out.println(gson.toJson(responseDto));
+            return;
+        }
+
+        // 로그인 성공
+        HttpSession session = request.getSession();
+        session.setAttribute("AuthenticationPrincipal", user.getUserId());
+        System.out.println("실행?");
+        ResponseDto<Boolean> responseDto =
+                new ResponseDto<Boolean>(200, "사용자 인증 성공", true);
+        out.println(gson.toJson(responseDto));
     }
+
 }
+
